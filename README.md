@@ -19,10 +19,10 @@
 
 ### Adding new revisions in alembic
 
-- `docker-compose run server poetry run alembic revision -m "<revision_name">`
+- `docker-compose run server alembic revision -m "<revision_name">`
 
 ### Migrating or Downgrading Database
 
-- `docker-compose run server poetry run alembic upgrade HEAD`
+- `docker-compose run server alembic upgrade HEAD`
 
-- `docker-compose run server poetry run alembic downgrade -<number_of revisions to be downgraded>`
+- `docker-compose run server alembic downgrade -<number_of revisions to be downgraded>`
