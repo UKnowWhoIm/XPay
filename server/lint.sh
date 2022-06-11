@@ -1,3 +1,3 @@
 #!/bin/sh
 
-poetry run pylint app
+pylint app
