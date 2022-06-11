@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+    server:
+        build: ./server
+        volumes:
+            - ./server:/app
+        ports:
+            - 6969:8000
+        environment:
+            - DATABASE_URL=postgres://postgres:xpay@database:5432
+
+    database:
+        image: postgres:alpine
+        volumes:
+            - ./volumes/datbase/pg:/var/lib/postgresql/data
+        environment:
+            POSTGRES_USER: "postgres"
+            POSTGRES_PASSWORD: "xpay"
+            POSTGRES_DB: "postgres"
