@@ -8,11 +8,9 @@ on:
 
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+
+  build_test_and_deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,3 +20,13 @@ jobs:
 
       - name: Lint
         run: docker-compose run server ./lint.sh
+
+      - name: Deploy
+      - if: ${{ github.event_name == 'push' }}
+      - uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: "xpay-offline-payments"
+          heroku_email: "sidharthajithkumar@gmail.com"
+          usedocker: true
+          appdir: "server"
