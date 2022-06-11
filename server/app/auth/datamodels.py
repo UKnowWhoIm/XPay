@@ -1,7 +1,10 @@
 """
 Data models for response and requests
 """
+from typing import Optional
+
 from pydantic import BaseModel
+
 from app.datamodels import Password, PhoneNumber
 
 
@@ -18,6 +21,7 @@ class User(PhoneNumber):
     """
     name: str
     id: str
+    balance: Optional[float] = 0
 
     class Config:
         """Enable ORM mode"""
