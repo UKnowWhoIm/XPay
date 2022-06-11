@@ -10,6 +10,7 @@ services:
         environment:
             - DATABASE_URL=postgres://postgres:xpay@database:5432/xpay
             - DEBUG=True
+            - SECRET_KEY=8188707be6a1b729e78f6c702de557b8da381ab76f5292583d26c2a8979f7676
         depends_on:
             database:
                 condition: service_healthy
