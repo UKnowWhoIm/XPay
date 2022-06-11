@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+jobs:
+
+  build_test_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: docker-compose build
+
+      - name: Lint
+        run: docker-compose run server ./lint.sh
+
+      - name: Deploy
+        uses: akhileshns/heroku-deploy@v3.12.12
+        if: ${{ github.event_name == 'push' }}
+        with:
+          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
+          heroku_app_name: "xpay-offline-payments"
+          heroku_email: "sidharthajithkumar@gmail.com"
+          usedocker: true
+          appdir: "server"
