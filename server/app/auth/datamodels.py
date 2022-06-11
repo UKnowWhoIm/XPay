@@ -17,6 +17,7 @@ class User(PhoneNumber):
     Response datamodel for user
     """
     name: str
+    id: str
 
     class Config:
         """Enable ORM mode"""

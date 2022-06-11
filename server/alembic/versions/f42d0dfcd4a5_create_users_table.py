@@ -8,6 +8,8 @@ Create Date: 2022-06-11 15:58:40.369417
 from alembic import op
 import sqlalchemy as sa
 
+from app.utils import uuid_to_string
+
 
 # revision identifiers, used by Alembic.
 revision = 'f42d0dfcd4a5'
@@ -19,7 +21,7 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "users",
-        sa.Column("id", sa.Integer, primary_key=True),
+        sa.Column("id", sa.String, primary_key=True, default=uuid_to_string),
         sa.Column("phone_number", sa.String, unique=True, nullable=False),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("password", sa.String, nullable=False)
