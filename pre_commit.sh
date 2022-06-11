@@ -14,7 +14,7 @@ target_files = [file.replace(\"server\", \"/app\") for file in changed_files if 
 if len(target_files) == 0:
     exit(0)
 
-lint = subprocess.run([\"docker-compose\", \"run\", \"server\", \"poetry\", \"run\", \"pylint\", *target_files], capture_output=True)
+lint = subprocess.run([\"docker-compose\", \"run\", \"server\", \"pylint\", *target_files], capture_output=True)
 
 print(lint.stdout.decode(\"utf-8\"))
 
