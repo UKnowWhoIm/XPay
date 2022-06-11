@@ -6,7 +6,11 @@ COPY pyproject.toml /app/
 
 WORKDIR /app
 
-RUN apk --no-cache add --virtual build-dependencies build-base musl-dev postgresql-dev libffi-dev \
+ENV CRYPTOGRAPHY_DONT_BUILD_RUST=1
+
+RUN apk add musl-dev postgresql-dev
+
+RUN apk --no-cache add --virtual build-dependencies build-base libffi-dev \
     && pip install poetry &&  poetry install  \
     && apk del build-dependencies
 
