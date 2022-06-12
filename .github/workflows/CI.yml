@@ -21,8 +21,7 @@ jobs:
       - name: Upload image
         uses: ishworkh/docker-image-artifact-upload@v1
         with:
-          image: "server_server:latest"
-
+          image: "xpay_server:latest"
 
   lint:
     runs-on: ubuntu-latest
@@ -33,7 +32,7 @@ jobs:
       - name: Download image
         uses: ishworkh/docker-image-artifact-download@v1
         with:
-          image: "server_server:latest"
+          image: "xpay_server:latest"
 
       - name: Lint
         run: docker-compose run server ./lint.sh
@@ -47,7 +46,7 @@ jobs:
       - name: Download image
         uses: ishworkh/docker-image-artifact-download@v1
         with:
-          image: "server_server:latest"
+          image: "xpay_server:latest"
 
       - name: Test
         run: docker-compose run server ./test.sh
@@ -61,7 +60,7 @@ jobs:
       - name: Download image
         uses: ishworkh/docker-image-artifact-download@v1
         with:
-          image: "server_server:latest"
+          image: "xpay_server:latest"
 
       - uses: actions/checkout@v3
       - name: Deploy
