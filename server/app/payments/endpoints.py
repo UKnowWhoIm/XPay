@@ -48,10 +48,10 @@ def create_payment(
             db_update_payment_request(transaction_in_db, transaction.status)
             rollback = True
         except ValueError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         if transaction.status == RequestStates.REJECTED:
-            database.commit(transaction_in_db)
+            database.commit()
             database.refresh(transaction_in_db)
             return transaction_in_db
 
@@ -70,8 +70,8 @@ def create_payment(
                 detail="Insufficent balance"
             )
 
-    if transaction.receiver_id:
-        target_user = db_get_user_by_id(database, transaction.receiver_id) is None
+    if transaction.receiver_id is not None:
+        target_user = db_get_user_by_id(database, transaction.receiver_id)
         if target_user is None:
             raise HTTPException(
                 status_code=400,
