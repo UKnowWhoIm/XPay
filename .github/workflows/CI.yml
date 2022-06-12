@@ -10,20 +10,62 @@ on:
 
 jobs:
 
-  build_test_and_deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
       - name: Build
         run: docker-compose build
+      
+      - name: Upload image
+        uses: ishworkh/docker-image-artifact-upload@v1
+        with:
+          image: "server_server:latest"
+
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download image
+        uses: ishworkh/docker-image-artifact-download@v1
+        with:
+          image: "server_server:latest"
 
       - name: Lint
         run: docker-compose run server ./lint.sh
 
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download image
+        uses: ishworkh/docker-image-artifact-download@v1
+        with:
+          image: "server_server:latest"
+
+      - name: Test
+        run: docker-compose run server ./test.sh
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: ${{ github.event_name == 'push' }}
+
+    steps:
+      - name: Download image
+        uses: ishworkh/docker-image-artifact-download@v1
+        with:
+          image: "server_server:latest"
+
+      - uses: actions/checkout@v3
       - name: Deploy
         uses: akhileshns/heroku-deploy@v3.12.12
-        if: ${{ github.event_name == 'push' }}
         with:
           heroku_api_key: ${{secrets.HEROKU_API_KEY}}
           heroku_app_name: "xpay-offline-payments"

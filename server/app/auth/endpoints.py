@@ -22,7 +22,7 @@ router = APIRouter(
 )
 
 
-@router.post("/users", dependencies=[Depends(no_auth)], response_model=User)
+@router.post("/users", dependencies=[Depends(no_auth)], response_model=User, status_code=201)
 def create_user(new_user: UserCreate, database = Depends(get_db)):
     """
     POST /auth/users

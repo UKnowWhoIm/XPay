@@ -52,7 +52,7 @@ def create_payment(
 
         if transaction.status == RequestStates.REJECTED:
             database.commit(transaction_in_db)
-            database.refresh()
+            database.refresh(transaction_in_db)
             return transaction_in_db
 
         transaction = TransactionCreate.from_payment_request(transaction_in_db)

@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from app.auth.db_models import User
 from app.auth.utils import get_password_hash
 
-def db_create_user(database, new_user):
+def db_create_user(database, new_user, commit=True):
     """
     Create new user in database
     """
@@ -14,8 +14,10 @@ def db_create_user(database, new_user):
         user_obj = User(**new_user.dict())
         user_obj.password = get_password_hash(user_obj.password)
         database.add(user_obj)
-        database.commit()
-        database.refresh(user_obj)
+        if commit:
+            database.commit()
+            database.refresh(user_obj)
+
     except IntegrityError as exc:
         raise ValueError("Phone number is already registered") from exc
     return user_obj

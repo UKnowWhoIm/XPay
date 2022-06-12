@@ -61,7 +61,7 @@ def db_has_pending_requests(database, sender, receiver):
     ).all()) > 0
 
 
-def db_create_transaction(database, data, current_user_id):
+def db_create_transaction(database, data, current_user_id, commit=True):
     """
     Create a transaction record
     """
@@ -78,8 +78,9 @@ def db_create_transaction(database, data, current_user_id):
         transaction.request_state = RequestStates.PENDING
 
     database.add(transaction)
-    database.commit()
-    database.refresh(transaction)
+    if commit:
+        database.commit()
+        database.refresh(transaction)
 
     return transaction
 
