@@ -12,6 +12,8 @@ from app.auth.policies import get_current_user, no_auth
 from app.auth.db_crud import db_create_user, db_get_user_by_phone_number
 from app.auth.utils import create_access_token, verify_password
 from app.database.dependency import get_db
+from app.exceptions import NOT_AUTHENTICATED
+from app.payments.db_crud import db_calculate_balance
 
 
 router = APIRouter(
@@ -20,7 +22,7 @@ router = APIRouter(
 )
 
 
-@router.post("/users", dependencies=[Depends(no_auth)], response_model=User)
+@router.post("/users", dependencies=[Depends(no_auth)], response_model=User, status_code=201)
 def create_user(new_user: UserCreate, database = Depends(get_db)):
     """
     POST /auth/users
@@ -52,17 +54,16 @@ def login(data: OAuth2PasswordRequestForm = Depends(), database = Depends(get_db
     if user_in_db is not None:
         if verify_password(data.password, user_in_db.password):
             return TokenData(access_token=create_access_token(user_in_db.id))
-    raise HTTPException(
-        status_code=401,
-        detail="Not Authenticated"
-    )
+    raise NOT_AUTHENTICATED
 
 
 @router.get("/me", response_model=User)
-def get_me(current_user = Depends(get_current_user)):
+def get_me(database = Depends(get_db), current_user = Depends(get_current_user)):
     """
     GET /auth/me
 
     Get details of currently authenticated user
     """
-    return User.from_orm(current_user)
+    user = User.from_orm(current_user)
+    user.balance = db_calculate_balance(database, current_user.id)
+    return user
