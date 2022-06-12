@@ -3,21 +3,24 @@ Router for payments
 
 Prefix: /payments
 """
-from typing import Union
+import logging
+from typing import List, Union, Optional
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.policies import get_current_user
 from app.auth.db_crud import db_get_user_by_id
+from app.exceptions import PERMISSION_DENIED
 from app.payments.datamodels import PaymentRequestResponse, Transaction, TransactionCreate
 from app.payments.db_crud import (
     db_calculate_balance,
     db_create_transaction,
     db_get_transaction_by_id,
     db_has_pending_requests,
+    db_list_transactions,
     db_update_payment_request
 )
 from app.database.dependency import get_db
-from app.payments.enums import TransactionTypes
+from app.payments.enums import RequestStates, TransactionTypes
 
 router = APIRouter(
     prefix="/payments"
@@ -37,20 +40,28 @@ def create_payment(
     """
     if isinstance(transaction, PaymentRequestResponse):
         transaction_in_db = db_get_transaction_by_id(database, transaction.id)
-        if transaction_in_db.receiver_id != current_user.id \
-            or transaction_in_db.type != TransactionTypes.TRANSFER:
-            raise HTTPException(
-                detail="Permission denied",
-                status_code=403
-            )
-        rollback = True
-        db_update_payment_request(transaction_in_db, transaction.status)
-        transaction = Transaction.from_orm(transaction_in_db)
+
+        if transaction_in_db.receiver_id != current_user.id:
+            raise PERMISSION_DENIED
+
+        try:
+            db_update_payment_request(transaction_in_db, transaction.status)
+            rollback = True
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+        if transaction.status == RequestStates.REJECTED:
+            database.commit(transaction_in_db)
+            database.refresh()
+            return transaction_in_db
+
+        transaction = TransactionCreate.from_payment_request(transaction_in_db)
     else:
         rollback = False
 
-    if transaction.type != TransactionTypes.RECHARGE:
+    if transaction.type == TransactionTypes.TRANSFER:
         balance = db_calculate_balance(database, current_user.id)
+        logging.info(balance)
         if balance < transaction.amount:
             if rollback:
                 database.rollback()
@@ -75,3 +86,18 @@ def create_payment(
         )
 
     return db_create_transaction(database, transaction, current_user.id)
+
+
+@router.get("", response_model=List[Transaction])
+def list_all_transactions(
+    current_user = Depends(get_current_user),
+    database = Depends(get_db),
+    limit: Optional[int] = 0,
+    offset: Optional[int] = 0
+):
+    """
+    GET /payments
+
+    List all transactions involving the authenticated user
+    """
+    return db_list_transactions(database, current_user.id, limit, offset)

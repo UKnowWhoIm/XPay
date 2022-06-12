@@ -1,4 +1,3 @@
-
 """
 Database functions of payments
 """
@@ -13,7 +12,7 @@ def db_calculate_balance(database, user_id):
     transactions = database.query(Transaction).filter(
         (Transaction.sender_id == user_id)
         | (Transaction.receiver_id == user_id)
-    ).all()
+    ).filter(Transaction.type != TransactionTypes.REQUEST).all()
 
     recieved = sum((
         transaction.amount
@@ -43,7 +42,12 @@ def db_update_payment_request(transaction: Transaction, state):
     """
     Update status of payment request to APPROVED/REJECTED
     """
-    transaction.request_state = state
+    if transaction.type == TransactionTypes.REQUEST and \
+        transaction.request_state == RequestStates.PENDING:
+
+        transaction.request_state = state
+    else:
+        raise ValueError("Not a valid request or request already processed")
 
 
 def db_has_pending_requests(database, sender, receiver):
@@ -66,15 +70,37 @@ def db_create_transaction(database, data, current_user_id):
         **data.dict()
     )
 
-    if transaction.type == TransactionTypes.REQUEST:
-        transaction.request_state = RequestStates.PENDING
-
     if transaction.type == TransactionTypes.RECHARGE:
         transaction.receiver_id = transaction.sender_id
         transaction.sender_id = None
+
+    if transaction.type == TransactionTypes.REQUEST:
+        transaction.request_state = RequestStates.PENDING
 
     database.add(transaction)
     database.commit()
     database.refresh(transaction)
 
     return transaction
+
+
+def db_list_transactions(database, user_id = None, limit = 0, offset = 0):
+    """
+    List all transactions
+    """
+
+    query = database.query(Transaction)
+
+    if user_id:
+        query = query.filter(
+            (Transaction.sender_id == user_id)
+            | (Transaction.receiver_id == user_id)
+        )
+
+    query = query.order_by(Transaction.timestamp.desc())
+
+    if limit:
+        query = query.limit(limit)
+    query = query.offset(offset)
+
+    return query.all()
