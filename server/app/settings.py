@@ -8,6 +8,8 @@ DEBUG = _debug
 
 SECRET_KEY = environ["SECRET_KEY"]
 
+RSA_SECRET_KEY = environ["RSA_SECRET_KEY"].encode("utf-8")
+
 ALGORITHM = "HS256"
 
 # 1 week default
