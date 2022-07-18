@@ -3,16 +3,25 @@ Router for payments
 
 Prefix: /payments
 """
+import json
 import logging
 from typing import List, Union, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import ValidationError
 
 from app.auth.policies import get_current_user
-from app.auth.db_crud import db_get_user_by_id
+from app.auth.db_crud import db_get_user_by_id, db_list_users
+from app.crypto_utils import deserialize_public_key
 from app.exceptions import PERMISSION_DENIED
-from app.payments.datamodels import PaymentRequestResponse, Transaction, TransactionCreate
+from app.payments.datamodels import (
+    OfflineEncryptedTransaction,
+    PaymentRequestResponse,
+    Transaction,
+    TransactionCreate
+)
 from app.payments.db_crud import (
     db_calculate_balance,
+    db_create_offline_transaction,
     db_create_transaction,
     db_get_transaction_by_id,
     db_has_pending_requests,
@@ -21,6 +30,8 @@ from app.payments.db_crud import (
 )
 from app.database.dependency import get_db
 from app.payments.enums import RequestStates, TransactionTypes
+from app.crypto_utils.encryption_provider import EncryptionProvider
+from app.settings import SERVER_RSA_KEY_SIZE, USER_RSA_KEY_SIZE
 
 router = APIRouter(
     prefix="/payments"
@@ -101,3 +112,105 @@ def list_all_transactions(
     List all transactions involving the authenticated user
     """
     return db_list_transactions(database, current_user.id, limit, offset)
+
+
+@router.post("/offline", status_code=201)
+async def sync_offline_payments(
+    request: Request,
+    database = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    POST /payments/offline
+
+    Sync offline transactions
+    """
+    ledger_modified_error = HTTPException(
+        status_code=403,
+        detail="Ledger has been modified by unauthorized entities"
+    )
+    transactions = []
+    transaction_ids = []
+    user_ids = set()
+    raw_transactions = await request.body()
+    try:
+        user_signature_size = USER_RSA_KEY_SIZE // 8
+        server_signature_size = SERVER_RSA_KEY_SIZE // 8
+        public_key_trailer = b"-----END PUBLIC KEY-----\n"
+        ledger_seperator = b"-----LEDGER SERPERATOR-----\n"
+        for raw_transaction in raw_transactions.split(ledger_seperator):
+            signature = raw_transaction[:user_signature_size]
+            public_key_signature = raw_transaction[
+                user_signature_size
+                :user_signature_size + server_signature_size
+            ]
+
+            start_index = user_signature_size + server_signature_size
+            [public_key, raw_data] = raw_transaction[start_index:].split(public_key_trailer)
+            public_key += public_key_trailer
+            data = json.loads(raw_data)
+            transactions.append(
+                OfflineEncryptedTransaction(
+                    signature=signature,
+                    public_key=public_key,
+                    public_key_signature=public_key_signature,
+                    raw_data=raw_data,
+                    **data
+                )
+            )
+
+    except (json.JSONDecodeError, ValidationError, IndexError) as exc:
+        raise ledger_modified_error from exc
+
+    for transaction in transactions:
+        try:
+            # User has to be either receiver or sender
+            if current_user.id not in (transaction.receiver_id, transaction.sender_id):
+                raise ledger_modified_error
+
+            if transaction.receiver_id == current_user.id:
+                user_ids.update({transaction.sender_id,})
+            else:
+                user_ids.update({transaction.receiver_id,})
+
+            # Public key cannot be user's
+            if current_user.keys.public_key == transaction.public_key:
+                raise ledger_modified_error
+
+            # Verify user public key integrity
+            if not EncryptionProvider.verify(
+                transaction.public_key,
+                transaction.public_key_signature
+            ):
+                raise ledger_modified_error
+
+            # Verify data integrity
+            if not EncryptionProvider.verify(
+                transaction.raw_data,
+                transaction.signature,
+                deserialize_public_key(transaction.public_key)
+            ):
+                raise ledger_modified_error
+            transaction_ids.append(transaction.id)
+        except ValueError as exc:
+            raise ledger_modified_error from exc
+
+    processed_transactions = [
+        transaction.id for transaction in
+        db_list_transactions(database, transaction_ids)
+    ]
+    users = db_list_users(database, user_ids)
+
+    if len(users) != len(user_ids):
+        print(len(users), len(user_ids))
+        raise ledger_modified_error
+
+    new_transactions = list(filter(
+        lambda transaction: transaction.id not in processed_transactions, transactions
+    ))
+    print([transaction.id for transaction in new_transactions])
+    for transaction in new_transactions:
+        db_create_offline_transaction(database, Transaction.from_offline_transaction(transaction))
+    database.commit()
+
+    return len(new_transactions)

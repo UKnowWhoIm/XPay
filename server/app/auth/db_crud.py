@@ -3,6 +3,7 @@ DB layer for auth and users
 """
 from app.auth.db_models import User
 from app.auth.utils import get_password_hash
+from app.crypto_utils.db_crud import db_create_user_key_pair
 
 def db_create_user(database, new_user, commit=True):
     """
@@ -17,6 +18,7 @@ def db_create_user(database, new_user, commit=True):
     if commit:
         database.commit()
         database.refresh(user_obj)
+    db_create_user_key_pair(database, user_obj, commit)
 
     return user_obj
 
@@ -33,3 +35,17 @@ def db_get_user_by_phone_number(database, phone_number):
     Select user by phone number in database
     """
     return database.query(User).filter_by(phone_number=phone_number).first()
+
+
+def db_list_users(database, user_ids = None):
+    """
+    List all users from database
+    """
+    query = database.query(User)
+
+    if user_ids is not None:
+        query = query.filter(
+            User.id.in_(user_ids)
+        )
+
+    return query.all()

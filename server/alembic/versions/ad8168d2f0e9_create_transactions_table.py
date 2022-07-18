@@ -31,7 +31,8 @@ def upgrade() -> None:
         sa.Column("receiver_id", sa.String, sa.ForeignKey("users.id"), nullable=False),
         sa.Column("amount", sa.Float, nullable=False),
         sa.Column("timestamp", sa.DateTime, server_default=sa.func.now()),
-        sa.Column("request_state", request_states_enum, nullable=True)
+        sa.Column("request_state", request_states_enum, nullable=True),
+        sa.Column("is_offline", sa.Boolean, nullable=False, default=False)
     )
 
 

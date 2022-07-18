@@ -16,8 +16,6 @@ from app.crypto_utils.encryption_provider import EncryptionProvider
 from app.database.dependency import get_db
 from app.exceptions import NOT_AUTHENTICATED
 from app.payments.db_crud import db_calculate_balance
-from app.crypto_utils.db_crud import db_create_user_key_pair
-
 
 router = APIRouter(
     prefix="/auth",
@@ -38,7 +36,7 @@ def create_user(new_user: UserCreate, database = Depends(get_db)):
     """
     try:
         user = db_create_user(database, new_user, False)
-        db_create_user_key_pair(database, user, True)
+        database.commit()
         database.refresh(user)
         return User.from_orm(user)
     except ValueError as exc:

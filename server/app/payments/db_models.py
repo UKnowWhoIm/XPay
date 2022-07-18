@@ -21,3 +21,4 @@ class Transaction(Base):
     amount = Column("amount", Float, nullable=False)
     timestamp = Column("timestamp", DateTime, nullable=False, server_default=func.now())
     request_state = Column("request_state", Enum(RequestStates), nullable=True)
+    is_offline = Column("is_offline", nullable=False, default=False)

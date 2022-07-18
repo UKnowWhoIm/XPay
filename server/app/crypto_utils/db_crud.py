@@ -15,3 +15,15 @@ def db_create_user_key_pair(database, user, commit=False):
     if commit:
         database.commit()
     return key
+
+
+def db_get_public_keys_of_users(database, user_ids):
+    """
+    Get public keys of users
+    """
+    raw_data = database.query(Key.public_key, Key.user_id)\
+        .filter(Key.user_id.in_(user_ids))\
+        .filter(Key.status == Key.ACTIVE)\
+        .all()
+
+    return {user_id: public_key for public_key, user_id in raw_data}

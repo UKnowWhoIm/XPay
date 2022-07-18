@@ -6,7 +6,7 @@ import logging
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
-from app.settings import RSA_SECRET_KEY
+from app.settings import RSA_SECRET_KEY, SERVER_RSA_KEY_SIZE, USER_RSA_KEY_SIZE
 
 
 class ServerKeys:
@@ -20,7 +20,6 @@ class ServerKeys:
     def serialized_public_key(cls):
         """To be shared to all users"""
         return serialize_public_key(cls.public_key)
-
 
 def serialize_private_key(key):
     """
@@ -47,20 +46,25 @@ def create_user_key_pair():
     """
     private_key = rsa.generate_private_key(
         public_exponent=65537,
-        key_size=2048
+        key_size=USER_RSA_KEY_SIZE
     )
     private_bytes = serialize_private_key(private_key)
     public_bytes = serialize_public_key(private_key.public_key())
     return private_bytes, public_bytes
 
 
-def load_key_pair(private_bytes, public_bytes):
+def deserialize_public_key(key_bytes):
     """
-    Load a key pair from the filesystem
+    Deserialize public key from storage
     """
-    private_key = serialization.load_pem_private_key(private_bytes, RSA_SECRET_KEY)
-    public_key = serialization.load_pem_public_key(public_bytes)
-    return private_key, public_key
+    return serialization.load_pem_public_key(key_bytes)
+
+
+def deserialize_private_key(key_bytes):
+    """
+    Deserialize private key from storage
+    """
+    return serialization.load_pem_private_key(key_bytes, RSA_SECRET_KEY)
 
 
 def decrypt_private_key(key):
@@ -81,7 +85,7 @@ def create_server_keys(filename):
     """
     private_key = rsa.generate_private_key(
         public_exponent=65537,
-        key_size=2048
+        key_size=SERVER_RSA_KEY_SIZE
     )
     public_key = private_key.public_key()
     private_bytes = serialize_private_key(private_key)
@@ -105,7 +109,7 @@ def load_server_keys():
         with open(filename + ".pub", "rb") as public_file:
             public_bytes = public_file.read()
         ServerKeys.private_key = serialization.load_pem_private_key(private_bytes, RSA_SECRET_KEY)
-        ServerKeys.public_key = serialization.load_pem_public_key(public_bytes)
+        ServerKeys.public_key = deserialize_public_key(public_bytes)
         logging.info("Loaded server keys")
 
     except (FileNotFoundError, ValueError) as exc:

@@ -49,6 +49,23 @@ class PaymentRequestResponse(BaseModel):
     status: Literal[RequestStates.APPROVED, RequestStates.REJECTED]
 
 
+class OfflineEncryptedTransaction(BaseModel):
+    """
+    Request datamodel for offline transactions
+    """
+    id: str
+    sender_id: str
+    receiver_id: str
+    amount: float
+    timestamp: datetime
+
+    signature: bytes
+    public_key: bytes
+    public_key_signature: bytes
+    raw_data: bytes
+
+
+
 class Transaction(TransactionCreate):
     """
     Response datamodel for transactions
@@ -57,6 +74,20 @@ class Transaction(TransactionCreate):
     sender_id: Optional[str]
     timestamp: datetime
     request_state: Optional[RequestStates]
+
+    @classmethod
+    def from_offline_transaction(cls, offline_transaction: OfflineEncryptedTransaction):
+        """
+        Create an instance of this class from offlinepayment data
+        """
+        return cls(
+            id=offline_transaction.id,
+            sender_id=offline_transaction.sender_id,
+            receiver_id=offline_transaction.receiver_id,
+            timestamp=offline_transaction.timestamp,
+            amount=offline_transaction.amount,
+            type=TransactionTypes.TRANSFER
+        )
 
     class Config:
         """Config"""
