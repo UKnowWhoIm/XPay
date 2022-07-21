@@ -1,6 +1,8 @@
 """
 Tests for payments
 """
+from datetime import datetime
+import json
 from random import sample, choice
 
 from fastapi.testclient import TestClient
@@ -8,11 +10,18 @@ from faker import Faker
 
 from app.auth.utils import create_access_token
 from app.conftest import get_auth_header
+from app.crypto_utils import deserialize_private_key, load_server_keys
+from app.crypto_utils.encryption_provider import EncryptionProvider
 from app.database.seed import create_users
 from app.main import app
-from app.payments.db_crud import db_calculate_balance, db_get_transaction_by_id
+from app.payments.db_crud import (
+    db_calculate_balance,
+    db_create_transaction,
+    db_get_transaction_by_id
+)
 from app.payments.datamodels import PaymentRequestResponse, TransactionCreate
 from app.payments.enums import RequestStates, TransactionTypes
+from app.utils import uuid_to_string
 
 
 client = TestClient(app)
@@ -185,3 +194,80 @@ def test_create_transaction(db_session):
         # Can't reject a rejected request
         req = client.post(url, json=data, headers=get_auth_header(receiver))
         assert req.status_code == 400
+
+
+def create_user_ledger_entry(user, data):
+    """
+    Creation of user's ledger
+    """
+    raw_data = json.dumps(data).encode("utf-8")
+    public_bytes = user.keys.public_key
+    public_signature = EncryptionProvider.sign(public_bytes)
+    data_signature = EncryptionProvider.sign(
+        raw_data,
+        deserialize_private_key(user.keys.private_key)
+    )
+
+    return data_signature + public_signature + public_bytes + raw_data
+
+
+def create_ledger_entry(sender, receiver, amount):
+    """
+    Creation and configuration of both sender's and receiver's ledger
+    """
+    timestamp = datetime.utcnow().timestamp()
+    data = {
+        "sender_id": sender.id,
+        "receiver_id": receiver.id,
+        "amount": amount,
+        "timestamp": timestamp,
+        "id": uuid_to_string()[:-10] + str(int(timestamp))
+    }
+    return create_user_ledger_entry(receiver, data), create_user_ledger_entry(sender, data)
+
+
+def test_offline_payments(db_session):
+    """
+    TEST POST /payments/offline
+
+    TODO Write fail cases too
+    """
+    users = create_users(db_session)
+    url = "/payments/offline"
+    load_server_keys()
+    ledger_seperator = b"-----LEDGER SERPERATOR-----\n"
+
+    # Recharge all users
+    for user in users:
+        data = TransactionCreate(
+            amount=fake.random_int(min=5000, max=10000),
+            type=TransactionTypes.RECHARGE
+        )
+        db_create_transaction(db_session, data, user.id, False)
+    db_session.commit()
+
+    user_ledgers = {user.id: b"" for user in users}
+    user_balances = {user.id: db_calculate_balance(db_session, user.id) for user in users}
+
+    for _ in range(10):
+        [sender, receiver] = sample(users, 2)
+        if user_balances[sender.id] < 10:
+            continue
+        amount = fake.random_int(min=1, max=user_balances[sender.id] // 10)
+        sender_ledger, receiver_ledger = create_ledger_entry(sender, receiver, amount)
+        user_ledgers[sender.id] += sender_ledger + ledger_seperator
+        user_ledgers[receiver.id] += receiver_ledger + ledger_seperator
+        user_balances[sender.id] -= amount
+        user_balances[receiver.id] += amount
+
+    for user_id, ledger in user_ledgers.items():
+        if len(ledger) == 0:
+            continue
+        # skip last seperator
+        ledger = ledger_seperator.join(ledger.split(ledger_seperator)[:-1])
+        # pylint: disable=cell-var-from-loop
+        headers = get_auth_header(next(filter(lambda user: user.id == user_id, users)))
+        headers["Content-Type"] = "application/octet-stream"
+        req = client.post(url, data=ledger, headers=headers)
+        assert req.status_code == 201
+        assert db_calculate_balance(db_session, user_id) == user_balances[user_id]

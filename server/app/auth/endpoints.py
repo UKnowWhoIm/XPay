@@ -5,16 +5,17 @@ Prefix: /auth
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth.datamodels import TokenData, UserCreate, User
 from app.auth.policies import get_current_user, no_auth
 from app.auth.db_crud import db_create_user, db_get_user_by_phone_number
 from app.auth.utils import create_access_token, verify_password
+from app.crypto_utils.encryption_provider import EncryptionProvider
 from app.database.dependency import get_db
 from app.exceptions import NOT_AUTHENTICATED
 from app.payments.db_crud import db_calculate_balance
-
 
 router = APIRouter(
     prefix="/auth",
@@ -34,7 +35,10 @@ def create_user(new_user: UserCreate, database = Depends(get_db)):
     raises 403 if authenticated
     """
     try:
-        return User.from_orm(db_create_user(database, new_user))
+        user = db_create_user(database, new_user, False)
+        database.commit()
+        database.refresh(user)
+        return User.from_orm(user)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
@@ -67,3 +71,16 @@ def get_me(database = Depends(get_db), current_user = Depends(get_current_user))
     user = User.from_orm(current_user)
     user.balance = db_calculate_balance(database, current_user.id)
     return user
+
+
+@router.get("/me/signature")
+def get_server_signature(current_user = Depends(get_current_user)):
+    """
+    GET /auth/me/signature
+
+    Returns signed user public key by server
+    """
+    return Response(
+        EncryptionProvider.sign(current_user.keys.public_key),
+        status_code=200
+    )

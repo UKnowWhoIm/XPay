@@ -85,7 +85,16 @@ def db_create_transaction(database, data, current_user_id, commit=True):
     return transaction
 
 
-def db_list_transactions(database, user_id = None, limit = 0, offset = 0):
+def db_create_offline_transaction(database, data, commit = False):
+    """
+    Create an offline transaction record
+    """
+    database.add(Transaction(is_offline=True, **data.dict()))
+    if commit:
+        database.commit()
+
+
+def db_list_transactions(database, transaction_ids = None, user_id = None, limit = 0, offset = 0):
     """
     List all transactions
     """
@@ -97,6 +106,9 @@ def db_list_transactions(database, user_id = None, limit = 0, offset = 0):
             (Transaction.sender_id == user_id)
             | (Transaction.receiver_id == user_id)
         )
+
+    if transaction_ids:
+        query = query.filter(Transaction.id.in_(transaction_ids))
 
     query = query.order_by(Transaction.timestamp.desc())
 

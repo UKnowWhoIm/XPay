@@ -2,17 +2,21 @@
 Entrypoint for the server
 """
 from fastapi import FastAPI, Request
+from app.crypto_utils import load_server_keys
 
 from app.database.connection import verify_postgres
 from app.middleware import inject_user_to_request
 from app.auth.endpoints import router as auth_router
 from app.payments.endpoints import router as payments_router
+from app.crypto_utils.endpoints import router as crypto_router
 
 app = FastAPI()
 
 app.add_event_handler("startup", verify_postgres)
+app.add_event_handler("startup", load_server_keys)
 app.include_router(auth_router)
 app.include_router(payments_router)
+app.include_router(crypto_router)
 
 @app.middleware("http")
 async def inject_user(request: Request, call_next):

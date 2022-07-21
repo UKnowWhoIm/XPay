@@ -6,6 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.datamodels import Password, PhoneNumber
+from app.crypto_utils.datamodels import UserKeys
 
 
 class UserCreate(PhoneNumber, Password):
@@ -22,6 +23,7 @@ class User(PhoneNumber):
     name: str
     id: str
     balance: Optional[float] = 0
+    keys: UserKeys
 
     class Config:
         """Enable ORM mode"""
