@@ -3,16 +3,13 @@ Endpoints for authorization and user management
 
 Prefix: /auth
 """
-
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.auth.datamodels import TokenData, UserCreate, User
 from app.auth.policies import get_current_user, no_auth
 from app.auth.db_crud import db_create_user, db_get_user_by_phone_number
 from app.auth.utils import create_access_token, verify_password
-from app.crypto_utils.encryption_provider import EncryptionProvider
 from app.database.dependency import get_db
 from app.exceptions import NOT_AUTHENTICATED
 from app.payments.db_crud import db_calculate_balance
@@ -61,7 +58,7 @@ def login(data: OAuth2PasswordRequestForm = Depends(), database = Depends(get_db
     raise NOT_AUTHENTICATED
 
 
-@router.get("/me", response_model=User)
+@router.get("/me")
 def get_me(database = Depends(get_db), current_user = Depends(get_current_user)):
     """
     GET /auth/me
@@ -69,18 +66,5 @@ def get_me(database = Depends(get_db), current_user = Depends(get_current_user))
     Get details of currently authenticated user
     """
     user = User.from_orm(current_user)
-    user.balance = db_calculate_balance(database, current_user.id)
+    user.set_balance(db_calculate_balance(database, current_user.id))
     return user
-
-
-@router.get("/me/signature")
-def get_server_signature(current_user = Depends(get_current_user)):
-    """
-    GET /auth/me/signature
-
-    Returns signed user public key by server
-    """
-    return Response(
-        EncryptionProvider.sign(current_user.keys.public_key),
-        status_code=200
-    )

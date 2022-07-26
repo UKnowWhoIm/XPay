@@ -114,6 +114,6 @@ def db_list_transactions(database, transaction_ids = None, user_id = None, limit
 
     if limit:
         query = query.limit(limit)
-    query = query.offset(offset)
+    query = query.offset(limit*offset)
 
     return query.all()
