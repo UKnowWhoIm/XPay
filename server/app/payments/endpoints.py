@@ -3,8 +3,9 @@ Router for payments
 
 Prefix: /payments
 """
+
+import base64
 import json
-import logging
 from typing import List, Union, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import ValidationError
@@ -69,10 +70,9 @@ def create_payment(
         transaction = TransactionCreate.from_payment_request(transaction_in_db)
     else:
         rollback = False
+    balance = db_calculate_balance(database, current_user.id)
 
     if transaction.type == TransactionTypes.TRANSFER:
-        balance = db_calculate_balance(database, current_user.id)
-        logging.info(balance)
         if balance < transaction.amount:
             if rollback:
                 database.rollback()
@@ -96,7 +96,19 @@ def create_payment(
             detail="Too many pending requests, unable to create a new one"
         )
 
-    return db_create_transaction(database, transaction, current_user.id)
+    transaction = Transaction.from_orm(
+        db_create_transaction(database, transaction, current_user.id)
+    )
+    new_balance = balance - transaction.amount if current_user.id == transaction.sender_id\
+                else balance + transaction.amount
+    return {
+        "balance": new_balance,
+        "balance_signature": base64.b64encode(
+            EncryptionProvider.sign(str(new_balance).encode("utf-8"))
+        ),
+        "transaction": transaction.dict(),
+    }
+
 
 
 @router.get("", response_model=List[Transaction])
@@ -111,7 +123,7 @@ def list_all_transactions(
 
     List all transactions involving the authenticated user
     """
-    return db_list_transactions(database, current_user.id, limit, offset)
+    return db_list_transactions(database, user_id=current_user.id, limit=limit, offset=offset)
 
 
 @router.post("/offline", status_code=201)

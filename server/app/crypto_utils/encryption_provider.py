@@ -20,10 +20,7 @@ class EncryptionProvider:
             private_key = ServerKeys.private_key
         return private_key.sign(
             data,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
+            padding.PKCS1v15(),
             hashes.SHA256()
         )
 
@@ -39,10 +36,7 @@ class EncryptionProvider:
             public_key.verify(
                 signature,
                 data,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
-                ),
+                padding.PKCS1v15(),
                 hashes.SHA256()
             )
             return True
@@ -60,11 +54,7 @@ class EncryptionProvider:
             public_key = ServerKeys.public_key
         return public_key.encrypt(
             data,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+            padding.PKCS1v15()
         )
 
     @classmethod
@@ -79,9 +69,5 @@ class EncryptionProvider:
 
         return private_key.decrypt(
             data,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
+            padding.PKCS1v15()
         )
