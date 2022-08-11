@@ -2,6 +2,7 @@
 Entrypoint for the server
 """
 from fastapi import FastAPI, Request
+
 from starlette.middleware.cors import CORSMiddleware
 
 from app.crypto_utils import load_server_keys

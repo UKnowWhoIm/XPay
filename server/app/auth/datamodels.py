@@ -1,14 +1,13 @@
 """
 Data models for response and requests
 """
-import base64
 from typing import Optional
 
 from pydantic import BaseModel
 
 from app.datamodels import Password, PhoneNumber
 from app.crypto_utils.datamodels import UserKeys
-from app.crypto_utils.encryption_provider import EncryptionProvider
+from app.utils import sign_balance
 
 
 class UserCreate(PhoneNumber, Password):
@@ -24,18 +23,14 @@ class User(PhoneNumber):
     """
     name: str
     id: str
-    balance: Optional[float] = 0
+    balance: Optional[dict]
     keys: UserKeys
-    balance_signature: Optional[str]
 
     def set_balance(self, amount):
         """
         Set balance and signature
         """
-        self.balance = amount
-        self.balance_signature = base64.b64encode(
-            EncryptionProvider.sign(str(self.balance).encode("utf-8"))
-        )
+        self.balance = sign_balance(amount)
 
     class Config:
         """Enable ORM mode"""

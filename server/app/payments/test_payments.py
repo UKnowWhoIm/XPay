@@ -103,7 +103,7 @@ def test_create_transaction(db_session):
             max=old_balance_receiver//10
         )
         req = client.post(url, json=data, headers=get_auth_header(sender))
-        transaction_id = req.json()["id"]
+        transaction_id = req.json()["transaction"]["id"]
         assert req.status_code == 200
         new_balance_sender = db_calculate_balance(db_session, sender.id)
         new_balance_receiver = db_calculate_balance(db_session, receiver.id)
@@ -131,8 +131,8 @@ def test_create_transaction(db_session):
         req = client.post(url, json=data, headers=get_auth_header(sender))
         assert req.status_code == 200
         resp = req.json()
-        assert resp["request_state"] == RequestStates.PENDING
-        transaction_id = resp["id"]
+        assert resp["transaction"]["request_state"] == RequestStates.PENDING
+        transaction_id = resp["transaction"]["id"]
 
         # No new request with this user until pending request is processed
         req = client.post(url, json=data, headers=get_auth_header(sender))
@@ -176,7 +176,7 @@ def test_create_transaction(db_session):
             amount=old_balance_receiver + 1
         ).dict()
         req = client.post(url, json=data, headers=get_auth_header(sender))
-        transaction_id = req.json()["id"]
+        transaction_id = req.json()["transaction"]["id"]
         assert req.status_code == 200
         data = PaymentRequestResponse(id=transaction_id, status=RequestStates.APPROVED).dict()
         req = client.post(url, json=data, headers=get_auth_header(receiver))

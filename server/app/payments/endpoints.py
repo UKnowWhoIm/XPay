@@ -4,8 +4,8 @@ Router for payments
 Prefix: /payments
 """
 
-import base64
 import json
+import logging
 from typing import List, Union, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import ValidationError
@@ -33,6 +33,7 @@ from app.database.dependency import get_db
 from app.payments.enums import RequestStates, TransactionTypes
 from app.crypto_utils.encryption_provider import EncryptionProvider
 from app.settings import SERVER_RSA_KEY_SIZE, USER_RSA_KEY_SIZE
+from app.utils import sign_balance
 
 router = APIRouter(
     prefix="/payments"
@@ -102,13 +103,9 @@ def create_payment(
     new_balance = balance - transaction.amount if current_user.id == transaction.sender_id\
                 else balance + transaction.amount
     return {
-        "balance": new_balance,
-        "balance_signature": base64.b64encode(
-            EncryptionProvider.sign(str(new_balance).encode("utf-8"))
-        ),
+        **sign_balance(new_balance),
         "transaction": transaction.dict(),
     }
-
 
 
 @router.get("", response_model=List[Transaction])
@@ -214,15 +211,17 @@ async def sync_offline_payments(
     users = db_list_users(database, user_ids)
 
     if len(users) != len(user_ids):
-        print(len(users), len(user_ids))
         raise ledger_modified_error
 
     new_transactions = list(filter(
         lambda transaction: transaction.id not in processed_transactions, transactions
     ))
-    print([transaction.id for transaction in new_transactions])
+    logging.debug([transaction.id for transaction in new_transactions])
     for transaction in new_transactions:
         db_create_offline_transaction(database, Transaction.from_offline_transaction(transaction))
     database.commit()
 
-    return len(new_transactions)
+    return {
+        "count": len(new_transactions),
+        **sign_balance(db_calculate_balance(database, current_user.id))
+    }

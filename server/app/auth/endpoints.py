@@ -20,7 +20,7 @@ router = APIRouter(
 )
 
 
-@router.post("/users", dependencies=[Depends(no_auth)], response_model=User, status_code=201)
+@router.post("/users", dependencies=[Depends(no_auth)], status_code=201)
 def create_user(new_user: UserCreate, database = Depends(get_db)):
     """
     POST /auth/users
@@ -35,7 +35,9 @@ def create_user(new_user: UserCreate, database = Depends(get_db)):
         user = db_create_user(database, new_user, False)
         database.commit()
         database.refresh(user)
-        return User.from_orm(user)
+        user = User.from_orm(user)
+        user.set_balance(db_calculate_balance(database, user.id))
+        return user
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
