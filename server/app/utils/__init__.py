@@ -23,6 +23,6 @@ def sign_balance(balance):
         "amount": balance,
         "timestamp": now,
         "signature": base64.b64encode(
-            EncryptionProvider.sign((f"{float(balance):2}{now}").encode("utf-8"))
+            EncryptionProvider.sign((f"{float(balance):.2f}{now}").encode("utf-8"))
         )
     }
