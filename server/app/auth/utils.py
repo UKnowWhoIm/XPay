@@ -9,12 +9,12 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi.security import OAuth2PasswordBearer
 
-from app.settings import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
+from app.settings import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, BASE_PATH, SECRET_KEY
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{BASE_PATH}/auth/login")
 
 
 def verify_password(plain_password, hashed_password):

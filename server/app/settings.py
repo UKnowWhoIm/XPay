@@ -10,6 +10,8 @@ SECRET_KEY = environ["SECRET_KEY"]
 
 RSA_SECRET_KEY = environ["RSA_SECRET_KEY"].encode("utf-8")
 
+BASE_PATH = environ.get("BASE_PATH", "")
+
 ALGORITHM = "HS256"
 
 # 1 week default

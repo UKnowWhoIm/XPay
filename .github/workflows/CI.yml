@@ -67,21 +67,8 @@ jobs:
     if: ${{ github.event_name == 'push' }}
 
     steps:
-      - name: Download image
-        uses: ishworkh/docker-image-artifact-download@v1
-        with:
-          image: "xpay_server:latest"
-
-      - uses: actions/checkout@v3
-      - name: Deploy
-        uses: akhileshns/heroku-deploy@v3.12.12
-        with:
-          heroku_api_key: ${{secrets.HEROKU_API_KEY}}
-          heroku_app_name: "xpay-offline-payments"
-          heroku_email: "sidharthajithkumar@gmail.com"
-          usedocker: true
-          appdir: "server"
       - name: Delete Artifact
         uses: geekyeggo/delete-artifact@v1
         with:
           name: "action_image_artifact_xpay_server_latest"
+      - run: echo "AWS integration not setup" && exit 1
