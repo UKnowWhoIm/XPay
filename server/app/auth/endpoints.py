@@ -37,6 +37,7 @@ def create_user(new_user: UserCreate, database = Depends(get_db)):
         database.refresh(user)
         user = User.from_orm(user)
         user.set_balance(db_calculate_balance(database, user.id))
+        user.access_token = create_access_token(user.id)
         return user
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

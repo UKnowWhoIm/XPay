@@ -16,6 +16,13 @@ class UserCreate(PhoneNumber, Password):
     """
     name: str
 
+class TokenData(BaseModel):
+    """
+    Response datamodel for token
+    """
+    access_token: str
+    token_type: str = "Bearer"
+
 
 class User(PhoneNumber):
     """
@@ -25,6 +32,7 @@ class User(PhoneNumber):
     id: str
     balance: Optional[dict]
     keys: UserKeys
+    access_token: Optional[TokenData]
 
     def set_balance(self, amount):
         """
@@ -35,11 +43,3 @@ class User(PhoneNumber):
     class Config:
         """Enable ORM mode"""
         orm_mode = True
-
-
-class TokenData(BaseModel):
-    """
-    Response datamodel for token
-    """
-    access_token: str
-    token_type: str = "Bearer"
