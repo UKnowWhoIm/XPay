@@ -4,7 +4,7 @@ Datamodels for CryptoUtils like Keys
 import base64
 from typing import Optional
 from pydantic import BaseModel, validator
-from app.crypto_utils import decrypt_private_key
+from app.crypto_utils import create_user_key_pair, decrypt_private_key
 from app.crypto_utils.encryption_provider import EncryptionProvider
 
 class UserKeys(BaseModel):
@@ -41,6 +41,16 @@ class UserKeys(BaseModel):
             EncryptionProvider.sign(
                 base64.b64decode(values.get("public_key"))
         ))
+
+    @classmethod
+    def create_key_pair(cls):
+        """
+        Create a key pair for the user and return as `UserKeys` object
+        """
+        private_key, public_key = create_user_key_pair()
+        keys = cls(private_key=private_key, public_key=public_key)
+        return cls.validate(keys)
+
 
     class Config:
         """Config"""

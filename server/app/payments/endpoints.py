@@ -34,6 +34,7 @@ from app.payments.enums import RequestStates, TransactionTypes
 from app.crypto_utils.encryption_provider import EncryptionProvider
 from app.settings import SERVER_RSA_KEY_SIZE, USER_RSA_KEY_SIZE
 from app.utils import sign_balance
+from app.crypto_utils.datamodels import UserKeys
 
 router = APIRouter(
     prefix="/payments"
@@ -223,5 +224,6 @@ async def sync_offline_payments(
 
     return {
         "count": len(new_transactions),
-        **sign_balance(db_calculate_balance(database, current_user.id))
+        **sign_balance(db_calculate_balance(database, current_user.id)),
+        "ledger_integrity_keys": UserKeys.create_key_pair().dict()
     }
