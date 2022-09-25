@@ -3,7 +3,7 @@ Data models for response and requests
 """
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.datamodels import Password, PhoneNumber
 from app.crypto_utils.datamodels import UserKeys
@@ -32,9 +32,6 @@ class User(PhoneNumber):
     id: str
     balance: Optional[dict]
     keys: UserKeys
-    ledger_integrity_keys: Optional[UserKeys] = Field(
-        default_factory=UserKeys.create_key_pair
-    )
     access_token: Optional[TokenData]
 
     def set_balance(self, amount):

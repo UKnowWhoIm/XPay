@@ -2,9 +2,13 @@
 Utility functions for Crypto Functionality like
 RSA encryption, decryption, signature verification, etc.
 """
+from datetime import datetime, timedelta
 import logging
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
+from cryptography.x509.oid import NameOID
 
 from app.settings import RSA_SECRET_KEY, SERVER_RSA_KEY_SIZE, USER_RSA_KEY_SIZE
 
@@ -40,14 +44,63 @@ def serialize_public_key(key):
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
 
+def create_pub_key_certificate(pub_key):
+    """
+    Create x.509 certificate of a user key issued by server
+    """
+    subject = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Kerala"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, "Kochi"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "Users"),
+        x509.NameAttribute(NameOID.COMMON_NAME, "User"),
+    ])
+    issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "IN"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Kerala"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, "Kochi"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "XPay"),
+        x509.NameAttribute(NameOID.COMMON_NAME, "xpay.com")
+    ])
+    one_day = timedelta(1, 0, 0)
+    builder = x509.CertificateBuilder()
+    builder = builder.subject_name(subject)
+    builder = builder.issuer_name(issuer)
+    builder = builder.not_valid_before(datetime.today() - one_day)
+    builder = builder.not_valid_after(datetime.today() + (one_day * 30))
+    builder = builder.serial_number(x509.random_serial_number())
+    builder = builder.public_key(pub_key)
+    builder = builder.add_extension(
+        x509.SubjectAlternativeName(
+            [x509.DNSName('uknowwhoim.me')]
+        ),
+        critical=False
+    )
+    builder = builder.add_extension(
+        x509.BasicConstraints(ca=False, path_length=None), critical=True
+    )
+    certificate = builder.sign(
+        private_key=ServerKeys.private_key, algorithm=hashes.SHA256(),
+    )
+    return certificate.public_bytes(serialization.Encoding.PEM)
+
+
+def create_private_key():
+    """
+    Create a key pair for the server
+    """
+    private_key = rsa.generate_private_key(
+        public_exponent=65537,
+        key_size=SERVER_RSA_KEY_SIZE
+    )
+    return private_key
+
+
 def create_user_key_pair():
     """
     Create a key pair for the user
     """
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=USER_RSA_KEY_SIZE
-    )
+    private_key = create_private_key()
     private_bytes = serialize_private_key(private_key)
     public_bytes = serialize_public_key(private_key.public_key())
     return private_bytes, public_bytes
